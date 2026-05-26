@@ -20,8 +20,8 @@ set -euo pipefail
 
 # ---- Configuration ----------------------------------------------------------
 SERVER_NAME="demiton"
-PROD_URL="https://api.demiton.io/mcp"
-STAGING_URL="https://api-staging.demiton.io/mcp"
+PROD_URL="https://api.demiton.io/mcp/"
+STAGING_URL="https://api-staging.demiton.io/mcp/"
 
 # ---- Argument parsing -------------------------------------------------------
 MODE="install"
@@ -209,3 +209,4 @@ else
     say "${DIM}Need help? Email support@demiton.io${RESET}"
 fi
 say ""
+
