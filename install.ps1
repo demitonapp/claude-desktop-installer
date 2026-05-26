@@ -38,8 +38,8 @@ $ErrorActionPreference = 'Stop'
 
 # ---- Configuration ----------------------------------------------------------
 $ServerName = 'demiton'
-$ProdUrl    = 'https://api.demiton.io/mcp'
-$StagingUrl = 'https://api-staging.demiton.io/mcp'
+$ProdUrl    = 'https://api.demiton.io/mcp/'
+$StagingUrl = 'https://api-staging.demiton.io/mcp/'
 
 $TargetUrl = if ($Staging) { $StagingUrl } else { $ProdUrl }
 $EnvLabel  = if ($Staging) { 'staging' }    else { 'production' }
