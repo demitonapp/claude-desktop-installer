@@ -11,10 +11,6 @@
     appears in the chat interface; the first message that uses Demiton
     opens your browser to log in.
 
-.PARAMETER Staging
-    Point at staging (https://api-staging.demiton.io/mcp) instead of
-    production. Useful for testing only.
-
 .PARAMETER Uninstall
     Remove the Demiton entry from claude_desktop_config.json. Leaves
     every other server in the config untouched.
@@ -30,7 +26,6 @@
 #>
 [CmdletBinding()]
 param(
-    [switch]$Staging,
     [switch]$Uninstall
 )
 
@@ -38,12 +33,9 @@ $ErrorActionPreference = 'Stop'
 
 # ---- Configuration ----------------------------------------------------------
 $ServerName = 'demiton'
-$ProdUrl    = 'https://api.demiton.io/mcp/'
-$StagingUrl = 'https://api-staging.demiton.io/mcp/'
-
-$TargetUrl = if ($Staging) { $StagingUrl } else { $ProdUrl }
-$EnvLabel  = if ($Staging) { 'staging' }    else { 'production' }
-$Mode      = if ($Uninstall) { 'uninstall' } else { 'install' }
+$TargetUrl  = 'https://api.demiton.io/mcp/'
+$EnvLabel   = 'production'
+$Mode       = if ($Uninstall) { 'uninstall' } else { 'install' }
 
 # ---- Helpers ----------------------------------------------------------------
 function Write-Info  { param([string]$Message) Write-Host "==> $Message" -ForegroundColor Cyan }
@@ -91,11 +83,27 @@ function Install-NodeJs {
     }
 }
 
-if ((Test-CommandExists 'node') -and (Test-CommandExists 'npx')) {
-    $NodeVersion = & node --version 2>$null
-    Write-Info "Node.js detected ($NodeVersion)"
+function Get-NodeMajor {
+    $v = & node --version 2>$null
+    if ($v -match '^v(\d+)\.') { return [int]$Matches[1] }
+    return $null
+}
+
+$NodeOk = (Test-CommandExists 'node') -and (Test-CommandExists 'npx') -and ((Get-NodeMajor) -ge 18)
+if ($NodeOk) {
+    Write-Info "Node.js detected ($(& node --version))"
 } else {
+    if (Test-CommandExists 'node') {
+        Write-Warn "Node.js $(& node --version 2>$null) is too old - mcp-remote needs Node 18 or later."
+    }
     Install-NodeJs
+    $Major = Get-NodeMajor
+    if (-not $Major) {
+        Write-Fail "Node.js install reported success but 'node' is still not on PATH. Open a new PowerShell window and rerun this script."
+    }
+    if ($Major -lt 18) {
+        Write-Fail "Node.js installed but is still $(& node --version) - mcp-remote needs 18+. Install a current LTS from https://nodejs.org and rerun."
+    }
     Write-Ok "Node.js installed: $(& node --version)"
 }
 

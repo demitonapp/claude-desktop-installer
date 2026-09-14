@@ -95,18 +95,6 @@ you saved it locally.
 The uninstaller removes only the `demiton` entry; every other MCP server in
 your config is left in place.
 
-## Staging
-
-For internal testing against staging:
-
-```bash
-bash install.sh --staging
-```
-
-```powershell
-.\install.ps1 -Staging
-```
-
 ## What gets added to your config
 
 ```json
