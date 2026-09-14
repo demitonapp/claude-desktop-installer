@@ -12,7 +12,6 @@
 #
 # Or download and run directly:
 #   bash install.sh                  # installs production (api.demiton.io)
-#   bash install.sh --staging        # installs staging
 #   bash install.sh --uninstall      # removes the Demiton entry
 # ============================================================================
 
@@ -21,7 +20,6 @@ set -euo pipefail
 # ---- Configuration ----------------------------------------------------------
 SERVER_NAME="demiton"
 PROD_URL="https://api.demiton.io/mcp/"
-STAGING_URL="https://api-staging.demiton.io/mcp/"
 
 # ---- Argument parsing -------------------------------------------------------
 MODE="install"
@@ -30,15 +28,11 @@ ENV_LABEL="production"
 
 for arg in "$@"; do
     case "$arg" in
-        --staging)
-            TARGET_URL="$STAGING_URL"
-            ENV_LABEL="staging"
-            ;;
         --uninstall)
             MODE="uninstall"
             ;;
         --help|-h)
-            sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -88,32 +82,51 @@ say "${DIM}Setting up the ${ENV_LABEL} connector on ${PLATFORM}${RESET}"
 say ""
 
 # ---- Node.js requirement ----------------------------------------------------
+# node_major echoes empty (not 0) on a version string it can't parse, so the
+# numeric comparison below intentionally fails closed rather than passing an
+# unparseable version as "new enough".
+node_major() {
+    node --version 2>/dev/null | sed -nE 's/^v([0-9]+).*/\1/p'
+}
+
 ensure_node() {
     if command -v node >/dev/null 2>&1 && command -v npx >/dev/null 2>&1; then
-        local node_version
-        node_version="$(node --version 2>/dev/null || echo unknown)"
-        info "Node.js detected (${node_version})"
-        return 0
+        local major
+        major="$(node_major)"
+        if [ -n "$major" ] && [ "$major" -ge 18 ]; then
+            info "Node.js detected ($(node --version))"
+            return 0
+        fi
+        warn "Node.js $(node --version 2>/dev/null || echo 'found') is too old - mcp-remote needs Node 18 or later."
+    else
+        warn "Node.js was not found. mcp-remote needs Node 18 or later to run."
     fi
-
-    warn "Node.js was not found. mcp-remote needs Node 18 or later to run."
 
     if [ "$PLATFORM" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
         info "Installing Node.js via Homebrew..."
         brew install node
     elif command -v apt-get >/dev/null 2>&1; then
-        info "Installing Node.js via apt..."
-        sudo apt-get update -qq
-        sudo apt-get install -y nodejs npm
+        # Debian/Ubuntu's own `apt` package is often years behind - too old
+        # for mcp-remote. NodeSource's setup script swaps the apt source for
+        # a current LTS before installing.
+        info "Installing Node.js 20.x via NodeSource + apt..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
     elif command -v dnf >/dev/null 2>&1; then
-        info "Installing Node.js via dnf..."
-        sudo dnf install -y nodejs npm
+        info "Installing Node.js 20.x via NodeSource + dnf..."
+        curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo -E bash -
+        sudo dnf install -y nodejs
     else
         fail "Could not install Node.js automatically. Please install Node 18+ from https://nodejs.org and rerun this script."
     fi
 
-    if ! command -v node >/dev/null 2>&1; then
+    local major
+    major="$(node_major)"
+    if [ -z "$major" ]; then
         fail "Node.js install reported success but 'node' is still not on PATH. Open a new terminal and rerun this script."
+    fi
+    if [ "$major" -lt 18 ]; then
+        fail "Node.js installed but is still $(node --version) - mcp-remote needs 18+. Install a current LTS from https://nodejs.org and rerun."
     fi
 
     ok "Node.js installed: $(node --version)"
